@@ -1,4 +1,4 @@
-﻿/*
+/*
 * Copyright (c) 2021 PlayEveryWare
 * 
 * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -26,7 +26,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
-using UnityEngine.InputSystem;
+//using UnityEngine.InputSystem;
 
 public class KeyboardUI : MonoBehaviour
 {
@@ -71,9 +71,9 @@ public class KeyboardUI : MonoBehaviour
         }
     }
 
+#if ENABLE_CONTROLLER
     private void Update()
     {
-
         var gamepad = Gamepad.current;
         if(gamepad == null)
         {
@@ -95,6 +95,7 @@ public class KeyboardUI : MonoBehaviour
             KeyboardCompleted();
         }
     }
+#endif
 
     public void ShowKeyboard(string value, OnKeyboardCompleted ShowKeyboardCompleted)
     {
