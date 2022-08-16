@@ -20,7 +20,6 @@
 * SOFTWARE.
 */
 
-using System.Collections.Generic;
 using Epic.OnlineServices.PlayerDataStorage;
 using UnityEngine;
 
