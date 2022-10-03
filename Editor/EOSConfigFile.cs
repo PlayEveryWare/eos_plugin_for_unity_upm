@@ -67,13 +67,6 @@ namespace PlayEveryWare.EpicOnlineServices
             else
             {
                 var configDataAsJSON = JsonUtility.ToJson(currentEOSConfig, prettyPrint);
-                string configFilenameParentPath = Path.GetDirectoryName(configFilenamePath);
-
-                if (!Directory.Exists(configFilenameParentPath))
-                {
-                    Directory.CreateDirectory(configFilenameParentPath);
-                }
-
 
                 File.WriteAllText(configFilenamePath, configDataAsJSON);
             }
