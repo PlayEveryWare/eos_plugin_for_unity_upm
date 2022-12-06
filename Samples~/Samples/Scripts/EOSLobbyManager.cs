@@ -883,6 +883,10 @@ namespace PlayEveryWare.EpicOnlineServices.Samples
         {
             _Dirty = true;
             CurrentInvite = null;
+
+#if UNITY_IOS && !UNITY_EDITOR
+            (EOSManagerPlatformSpecifics.Instance as EOSPlatformSpecificsiOS).SetDefaultAudioSession();
+#endif
         }
 
         /// <summary>User Logged Out actions</summary>

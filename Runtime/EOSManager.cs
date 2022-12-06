@@ -105,7 +105,7 @@ namespace PlayEveryWare.EpicOnlineServices
         private static List<OnAuthLoginCallback> s_onAuthLoginCallbacks = new List<OnAuthLoginCallback>();
 
         /// <value>List of Auth Logout callbacks</value>
-        private static List<OnLogoutCallback> s_onAuthLogoutCallbacks = new List<OnLogoutCallback>();
+        private static List<OnAuthLogoutCallback> s_onAuthLogoutCallbacks = new List<OnAuthLogoutCallback>();
 
         /// <value>True if EOS Overlay is visible and has exclusive input.</value>
         private static bool s_isOverlayVisible = false;
@@ -295,6 +295,36 @@ namespace PlayEveryWare.EpicOnlineServices
                 UnityEngine.Debug.Log(toPrint);
             }
 
+            //-------------------------------------------------------------------------
+            public void AddConnectLoginListener(IEOSOnConnectLogin connectLogin)
+            {
+                s_onConnectLoginCallbacks.Add(connectLogin.OnConnectLogin);
+            }
+
+            public void AddAuthLoginListener(IEOSOnAuthLogin authLogin)
+            {
+                s_onAuthLoginCallbacks.Add(authLogin.OnAuthLogin);
+            }
+
+            public void AddAuthLogoutListener(IEOSOnAuthLogout authLogout)
+            {
+                s_onAuthLogoutCallbacks.Add(authLogout.OnAuthLogout);
+            }
+
+            public void RemoveConnectLoginListener(IEOSOnConnectLogin connectLogin)
+            {
+                s_onConnectLoginCallbacks.Remove(connectLogin.OnConnectLogin);
+            }
+
+            public void RemoveAuthLoginListener(IEOSOnAuthLogin authLogin)
+            {
+                s_onAuthLoginCallbacks.Remove(authLogin.OnAuthLogin);
+            }
+
+            public void RemoveAuthLogoutListener(IEOSOnAuthLogout authLogout)
+            {
+                s_onAuthLogoutCallbacks.Remove(authLogout.OnAuthLogout);
+            }
 
             //-------------------------------------------------------------------------
             public T GetOrCreateManager<T>() where T : IEOSSubManager, new()
@@ -308,15 +338,15 @@ namespace PlayEveryWare.EpicOnlineServices
 
                     if (manager is IEOSOnConnectLogin)
                     {
-                        s_onConnectLoginCallbacks.Add((manager as IEOSOnConnectLogin).OnConnectLogin);
+                        AddConnectLoginListener(manager as IEOSOnConnectLogin);
                     }
                     if (manager is IEOSOnAuthLogin)
                     {
-                        s_onAuthLoginCallbacks.Add((manager as IEOSOnAuthLogin).OnAuthLogin);
+                        AddAuthLoginListener(manager as IEOSOnAuthLogin);
                     }
                     if (manager is IEOSOnAuthLogout)
                     {
-                        s_onAuthLogoutCallbacks.Add((manager as IEOSOnAuthLogout).OnAuthLogout);
+                        AddAuthLogoutListener(manager as IEOSOnAuthLogout);
                     }
                 }
                 else
@@ -334,15 +364,15 @@ namespace PlayEveryWare.EpicOnlineServices
                     T manager = (T)s_subManagers[type];
                     if (manager is IEOSOnConnectLogin)
                     {
-                        s_onConnectLoginCallbacks.Remove((manager as IEOSOnConnectLogin).OnConnectLogin);
+                        RemoveConnectLoginListener(manager as IEOSOnConnectLogin);
                     }
                     if (manager is IEOSOnAuthLogin)
                     {
-                        s_onAuthLoginCallbacks.Remove((manager as IEOSOnAuthLogin).OnAuthLogin);
+                        RemoveAuthLoginListener(manager as IEOSOnAuthLogin);
                     }
                     if (manager is IEOSOnAuthLogout)
                     {
-                        s_onAuthLogoutCallbacks.Remove((manager as IEOSOnAuthLogout).OnAuthLogout);
+                        RemoveAuthLogoutListener(manager as IEOSOnAuthLogout);
                     }
 
                     s_subManagers.Remove(type);
@@ -428,7 +458,7 @@ namespace PlayEveryWare.EpicOnlineServices
                 platformOptions.ClientCredentials = clientCredentials;
 
 
-#if !(UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN || UNITY_STANDALONE_LINUX || UNITY_EDITOR_LINUX)
+#if !(UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN || (UNITY_STANDALONE_LINUX && EOS_PREVIEW_PLATFORM) || (UNITY_EDITOR_LINUX && EOS_PREVIEW_PLATFORM))
                 var createIntegratedPlatformOptionsContainerOptions = new Epic.OnlineServices.IntegratedPlatform.CreateIntegratedPlatformOptionsContainerOptions();
                 //TODO: handle errors
                 var integratedPlatformOptionsContainer = new Epic.OnlineServices.IntegratedPlatform.IntegratedPlatformOptionsContainer();
@@ -524,6 +554,9 @@ namespace PlayEveryWare.EpicOnlineServices
                     var secondTryResult = InitializePlatformInterface(configData);
                     UnityEngine.Debug.LogWarning($"EOSManager::Init: InitializePlatformInterface: initResult = {secondTryResult}");
                     if (secondTryResult != Result.Success)
+#endif
+#if UNITY_EDITOR_OSX && EOS_PREVIEW_PLATFORM
+                    if (secondTryResult != Result.AlreadyConfigured)
 #endif
                     {
                         throw new System.Exception("Epic Online Services didn't init correctly: " + initResult);
@@ -1059,46 +1092,35 @@ namespace PlayEveryWare.EpicOnlineServices
             //-------------------------------------------------------------------------
             private void CallOnAuthLogin(Epic.OnlineServices.Auth.LoginCallbackInfo loginCallbackInfo)
             {
-                foreach(var callback in s_onAuthLoginCallbacks)
+                //create a copy of the callback list to iterate on in case the original list is modified during iteration
+                var callbacks = new List<OnAuthLoginCallback>(s_onAuthLoginCallbacks);
+
+                foreach (var callback in callbacks)
                 {
-                    callback.Invoke(loginCallbackInfo);
+                    callback?.Invoke(loginCallbackInfo);
                 }
             }
 
             private void CallOnConnectLogin(Epic.OnlineServices.Connect.LoginCallbackInfo connectLoginData)
             {
-                foreach (var callback in s_onConnectLoginCallbacks)
+                var callbacks = new List<OnConnectLoginCallback>(s_onConnectLoginCallbacks);
+
+                foreach (var callback in callbacks)
                 {
-                    callback.Invoke(connectLoginData);
+                    callback?.Invoke(connectLoginData);
                 }
             }
-            //-------------------------------------------------------------------------
-#if UNITY_IOS
-            [DllImport("__Internal")]
-            static private extern IntPtr LoginUtility_get_app_controller();
 
-            IOSLoginOptions MakeIOSLoginOptionsFromDefualt(Epic.OnlineServices.Auth.LoginOptions loginOptions)
+            private void CallOnAuthLogout(LogoutCallbackInfo logoutCallbackInfo)
             {
-                IOSLoginOptions modifiedLoginOptions = new IOSLoginOptions();
-                modifiedLoginOptions.ScopeFlags = loginOptions.ScopeFlags;
-                
-                var credentials = new IOSCredentials();
+                var callbacks = new List<OnAuthLogoutCallback>(s_onAuthLogoutCallbacks);
 
-                credentials.Token = loginOptions.Credentials.Value.Token;
-                credentials.Id = loginOptions.Credentials.Value.Id;
-                credentials.Type = loginOptions.Credentials.Value.Type;
-                credentials.ExternalType = loginOptions.Credentials.Value.ExternalType;
-
-                var systemAuthCredentialsOptions = new IOSCredentialsSystemAuthCredentialsOptions();
-
-                systemAuthCredentialsOptions.PresentationContextProviding = LoginUtility_get_app_controller();
-                credentials.SystemAuthCredentialsOptions = systemAuthCredentialsOptions;
-
-                modifiedLoginOptions.Credentials = credentials;
-
-                return modifiedLoginOptions;
+                foreach (var callback in callbacks)
+                {
+                    callback?.Invoke(logoutCallbackInfo);
+                }
             }
-#endif
+
             //-------------------------------------------------------------------------
             /// <summary>
             /// Start an EOS Auth Login with the passed in LoginOptions. Call this instead of the method on EOSAuthInterface to ensure that 
@@ -1125,8 +1147,8 @@ namespace PlayEveryWare.EpicOnlineServices
 
                 print("StartLoginWithLoginTypeAndToken");
 
-#if UNITY_IOS
-                IOSLoginOptions modifiedLoginOptions = MakeIOSLoginOptionsFromDefualt(loginOptions);
+#if UNITY_IOS && !UNITY_EDITOR
+                IOSLoginOptions modifiedLoginOptions = (EOSManagerPlatformSpecifics.Instance as EOSPlatformSpecificsiOS).MakeIOSLoginOptionsFromDefualt(loginOptions);
                 EOSAuthInterface.Login(ref modifiedLoginOptions, null, (Epic.OnlineServices.Auth.OnLoginCallback)((ref Epic.OnlineServices.Auth.LoginCallbackInfo data) => {
 #else
                 EOSAuthInterface.Login(ref loginOptions, null, (Epic.OnlineServices.Auth.OnLoginCallback)((ref Epic.OnlineServices.Auth.LoginCallbackInfo data) => {
@@ -1196,13 +1218,13 @@ namespace PlayEveryWare.EpicOnlineServices
                 });
             }
 
-        //-------------------------------------------------------------------------
-        /// <summary>
-        /// Starts a logout for Auth
-        /// </summary>
-        /// <param name="accountId"></param>
-        /// <param name="onLogoutCallback"></param>
-        public void StartLogout(EpicAccountId accountId, OnLogoutCallback onLogoutCallback)
+            //-------------------------------------------------------------------------
+            /// <summary>
+            /// Starts a logout for Auth
+            /// </summary>
+            /// <param name="accountId"></param>
+            /// <param name="onLogoutCallback"></param>
+            public void StartLogout(EpicAccountId accountId, OnLogoutCallback onLogoutCallback)
             {
                 var EOSAuthInterface = GetEOSPlatformInterface().GetAuthInterface();
                 LogoutOptions options = new LogoutOptions
@@ -1215,10 +1237,7 @@ namespace PlayEveryWare.EpicOnlineServices
                     {
                         onLogoutCallback(ref data);
 
-                        foreach(var callback in s_onAuthLogoutCallbacks)
-                        {
-                            callback(ref data);
-                        }
+                        CallOnAuthLogout(data);
                     }
                 });
             }
@@ -1277,6 +1296,7 @@ namespace PlayEveryWare.EpicOnlineServices
                     s_state = EOSState.ShuttingDown;
                     print("Shutting down eos and releasing handles");
                     // Not doing this in the editor, because it doesn't seem to be an issue there
+#if !UNITY_EDITOR_OSX
 #if !UNITY_EDITOR
                     //LoggingInterface.SetLogLevel(LogCategory.AllCategories, LogLevel.Off);
                     //Epic.OnlineServices.Logging.LoggingInterface.SetCallback(null);
@@ -1286,6 +1306,7 @@ namespace PlayEveryWare.EpicOnlineServices
                     GetEOSPlatformInterface()?.Release();
                     ShutdownPlatformInterface();
                     SetEOSPlatformInterface(null);
+#endif
 #if UNITY_EDITOR
                     UnloadAllLibraries();
 #endif

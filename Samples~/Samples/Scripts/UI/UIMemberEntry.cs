@@ -115,12 +115,22 @@ namespace PlayEveryWare.EpicOnlineServices.Samples
             if(lobbyManager.GetCurrentLobby().RTCRoomEnabled)
             {
                 MuteButton.enabled = true;
+                MuteButton.interactable = true;
                 MuteButton.gameObject.SetActive(true);
 
                 foreach(LobbyMember member in lobbyManager.GetCurrentLobby().Members)
                 {
-                    if(member.ProductId == ProductUserId)
+                    if (member.ProductId == ProductUserId)
                     {
+                        if (member.ProductId == EOSManager.Instance.GetProductUserId())
+                        {
+                            if (!HasPlatformMicrophonePermission())
+                            {
+                                IsTalkingText.text = "Mic not permitted";
+                                MuteButton.interactable = false;
+                                break;
+                            }
+                        }
                         // Update Talking state
                         if (member.RTCState.IsTalking)
                         {
@@ -133,14 +143,6 @@ namespace PlayEveryWare.EpicOnlineServices.Samples
                         else
                         {
                             IsTalkingText.text = "Silent";
-
-                            if (member.ProductId == EOSManager.Instance.GetProductUserId())
-                            {
-                                if (!HasPlatformMicrophonePermission())
-                                {
-                                    IsTalkingText.text = "Mic not permitted";
-                                }
-                            }
                         }
                         break;
                     }
@@ -191,12 +193,19 @@ namespace PlayEveryWare.EpicOnlineServices.Samples
             }
         }
 
+#if EOS_PREVIEW_PLATFORM
+    #if UNITY_STANDALONE_OSX || UNITY_EDITOR_OSX
+        [System.Runtime.InteropServices.DllImport("MicrophoneUtility_macos.dylib")]
+        public static extern bool MicrophoneUtility_get_mic_permission();
+    #elif UNITY_IOS
+        [System.Runtime.InteropServices.DllImport("__Internal")]
+        public static extern bool MicrophoneUtility_get_mic_permission();
+    #endif
+#endif
         private bool HasPlatformMicrophonePermission()
         {
-#if UNITY_IOS
-            return Application.HasUserAuthorization(UserAuthorization.Microphone);
-#elif UNITY_STANDALONE_OSX  //Always returns true, needs workaround
-            return Application.HasUserAuthorization(UserAuthorization.Microphone);
+#if UNITY_IOS || ((UNITY_STANDALONE_OSX || UNITY_EDITOR_OSX) && EOS_PREVIEW_PLATFORM)
+            return MicrophoneUtility_get_mic_permission();
 #elif UNITY_ANDROID
             return UnityEngine.Android.Permission.HasUserAuthorizedPermission(UnityEngine.Android.Permission.Microphone);
 #else
