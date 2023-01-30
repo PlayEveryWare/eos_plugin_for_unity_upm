@@ -3,7 +3,7 @@
 ### Language Style Guides
 
 ### For All source files
-Each source code file needs to contain the license which it is licensed under. 
+Each source code file needs to contain the license which it is licensed under.
 
 #### For C
 
