@@ -16,3 +16,4 @@
 *.png filter=lfs diff=lfs merge=lfs -text
 Runtime/iOS/EOSSDK.framework/EOSSDK filter=lfs diff=lfs merge=lfs -text
 *.dylib filter=lfs diff=lfs merge=lfs -text
+*.exe filter=lfs diff=lfs merge=lfs -text
