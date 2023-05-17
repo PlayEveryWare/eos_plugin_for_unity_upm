@@ -6,7 +6,7 @@ PluginImporter:
   iconMap: {}
   executionOrder: {}
   defineConstraints: []
-  isPreloaded: 1
+  isPreloaded: 0
   isOverridable: 0
   isExplicitlyReferenced: 0
   validateReferences: 1
@@ -18,7 +18,6 @@ PluginImporter:
       settings:
         Exclude Android: 1
         Exclude Editor: 1
-        Exclude GameCoreScarlett: 1
         Exclude Linux64: 1
         Exclude OSXUniversal: 1
         Exclude PS4: 1
