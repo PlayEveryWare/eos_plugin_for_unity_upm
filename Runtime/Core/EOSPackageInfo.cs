@@ -37,7 +37,7 @@ public static class EOSPackageInfo
     //VERSION START
     public static string GetPackageVersion()
     {
-        return "2.3.3";
+        return "3.0.0";
     }
     //VERSION END
 }

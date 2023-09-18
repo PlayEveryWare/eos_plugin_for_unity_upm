@@ -38,9 +38,17 @@ namespace PlayEveryWare.EpicOnlineServices.Samples.Network
 
             AddRequest request;
             request = Client.Add("com.unity.netcode.gameobjects@1.0.2");
-            while (request.Status == StatusCode.InProgress) { }
-            if (request.Result != null) { Debug.Log("[com.unity.netcode.gameobjects@1.0.2] successfully installed"); }
-            else { Debug.Log("[com.unity.netcode.gameobjects@1.0.2] Request Failed : " + request.Error.ToString()); }
+            while (request.Status == StatusCode.InProgress)
+            {
+            }
+            if (request.Result != null)
+            { 
+                Debug.Log("[com.unity.netcode.gameobjects@1.0.2] successfully installed"); 
+            }
+            else
+            {
+                Debug.Log("[com.unity.netcode.gameobjects@1.0.2] Request Failed : " + request.Error.ToString());
+            }
 #endif
         }
     }

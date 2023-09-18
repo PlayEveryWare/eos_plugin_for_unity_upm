@@ -109,6 +109,9 @@ namespace PlayEveryWare.EpicOnlineServices
         /// <value><c>HACK: send force send input without delay</c>If true, the native plugin will always send input received directly to the SDK. If set to false, the plugin will attempt to delay the input to mitigate CPU spikes caused by spamming the SDK </value>
         public bool hackForceSendInputDirectlyToSDK;
 
+        /// <value><c> set to 'true' if the application is a dedicated game server</c>>
+        public bool isServer;
+
 
 
         public static Regex InvalidEncryptionKeyRegex;
@@ -182,6 +185,10 @@ namespace PlayEveryWare.EpicOnlineServices
                 else if (StringIsEqualToAny(flagAsCString, "EOS_IPMF_PreferIntegrated", "PreferIntegrated", "EOS_IPMF_PreferIntegratedIdentity"))
                 {
                     toReturn |= (int)Epic.OnlineServices.IntegratedPlatform.IntegratedPlatformManagementFlags.PreferIntegratedIdentity;
+                }
+                else if (StringIsEqualToAny(flagAsCString, "EOS_IPMF_ApplicationManagedIdentityLogin", "ApplicationManagedIdentityLogin"))
+                {
+                    toReturn |= (int)Epic.OnlineServices.IntegratedPlatform.IntegratedPlatformManagementFlags.ApplicationManagedIdentityLogin;
                 }
             }
 

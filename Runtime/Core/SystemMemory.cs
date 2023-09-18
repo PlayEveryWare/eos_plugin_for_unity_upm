@@ -20,15 +20,15 @@
 * SOFTWARE.
 */
 
-#if UNITY_PS5 || UNITY_PS4 || UNITY_GAMECORE_XBOXONE || UNITY_GAMECORE_SCARLETT
+#if UNITY_PS5 || UNITY_PS4 || UNITY_GAMECORE_XBOXONE || UNITY_GAMECORE_SCARLETT || UNITY_SWITCH
 #define ENABLE_GET_ALLOCATOR_FUNCTION
 #endif
 
-#if UNITY_IOS && UNITY_STANDALONE
+#if !UNITY_EDITOR && (UNITY_IOS || UNITY_PS4 || UNITY_PS5 || UNITY_SWITCH)
 #define DLLHELPER_HAS_INTERNAL_LINKAGE
 #endif
 
-#if UNITY_STANDALONE || UNITY_EDITOR_WIN
+#if UNITY_STANDALONE || UNITY_EDITOR_WIN || UNITY_PS4 || UNITY_PS5 || UNITY_GAMECORE_XBOXONE || UNITY_GAMECORE_SCARLETT || UNITY_SWITCH
 #define DYNAMIC_MEMORY_ALLOCATION_AVAILABLE
 #endif
 
@@ -87,7 +87,7 @@ public partial class SystemMemory
     //-------------------------------------------------------------------------
     static public void GetAllocatorFunctions(out IntPtr alloc, out IntPtr realloc, out IntPtr free)
     {
-#if ENABLE_GET_ALLOCATOR_FUNCTION
+#if DYNAMIC_MEMORY_ALLOCATION_AVAILABLE && ENABLE_GET_ALLOCATOR_FUNCTION
         Mem_GetAllocatorFunctions(out alloc, out realloc, out free);
 #else
         alloc = IntPtr.Zero;
@@ -100,7 +100,7 @@ public partial class SystemMemory
 #if DLLHELPER_HAS_INTERNAL_LINKAGE
         "__Internal";
 #else
-        "DynamicLibraryLoaderHelper";
+       "DynamicLibraryLoaderHelper";
 
 #endif
 
