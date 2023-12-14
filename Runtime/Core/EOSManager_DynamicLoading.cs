@@ -336,7 +336,8 @@ namespace PlayEveryWare.EpicOnlineServices
                     if (existingHandle != IntPtr.Zero)
                     {
                         GC.WaitForPendingFinalizers();
-                        SystemDynamicLibrary.UnloadLibraryInEditor(existingHandle);
+                        if (SystemDynamicLibrary.UnloadLibraryInEditor(existingHandle))
+                            break;
                     }
                     timeout--;
                 } while (IntPtr.Zero != existingHandle && timeout > 0);
