@@ -618,10 +618,7 @@ namespace PlayEveryWare.EpicOnlineServices
                     var secondTryResult = InitializePlatformInterface(loadedEOSConfig);
                     UnityEngine.Debug.LogWarning($"EOSManager::Init: InitializePlatformInterface: initResult = {secondTryResult}");
 
-                    if (secondTryResult != Result.Success)
-#endif
-#if (UNITY_EDITOR_OSX || UNITY_EDITOR_LINUX)
-                    if (secondTryResult != Result.AlreadyConfigured)
+                    if (secondTryResult != Result.Success && secondTryResult != Result.AlreadyConfigured)
 #endif
                     {
                         throw new System.Exception("Epic Online Services didn't init correctly: " + initResult);
