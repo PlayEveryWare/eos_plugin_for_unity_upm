@@ -335,8 +335,8 @@ namespace PlayEveryWare.EpicOnlineServices
                     existingHandle = SystemDynamicLibrary.GetHandleForModule(EOSBinaryName);
                     var dllHandle = new DLLHandle(existingHandle);
                     // dllHandle.ReleaseHandle(); // it's protected, let's use reflection
-					var releaseHandleMethod = dllHandle.GetType().GetMethod("ReleaseHandle", BindingFlags.NonPublic | BindingFlags.Instance);
-					releaseHandleMethod.Invoke(dllHandle, null);
+                    var releaseHandleMethod = dllHandle.GetType().GetMethod("ReleaseHandle", BindingFlags.NonPublic | BindingFlags.Instance);
+                    releaseHandleMethod.Invoke(dllHandle, null);
                     timeout--;
                 } while (IntPtr.Zero != existingHandle && timeout > 0);
 
