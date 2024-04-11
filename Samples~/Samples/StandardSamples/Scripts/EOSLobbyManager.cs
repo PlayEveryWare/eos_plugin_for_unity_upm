@@ -470,9 +470,10 @@ namespace PlayEveryWare.EpicOnlineServices.Samples
         private List<Action> LobbyUpdateCallbacks;
 
         private EOSUserInfoManager UserInfoManager;
+        
+        public LocalRTCOptions? customLocalRTCOptions;
 
         // Init
-
         public EOSLobbyManager()
         {
             UserInfoManager = EOSManager.Instance.GetOrCreateManager<EOSUserInfoManager>();
@@ -745,6 +746,12 @@ namespace PlayEveryWare.EpicOnlineServices.Samples
             {
                 EOSManager.Instance.GetEOSRTCInterface().GetAudioInterface().RemoveNotifyParticipantUpdated(handle);
             });
+
+            // Allow Manual Gain Control
+            var setSetting = new SetSettingOptions();
+            setSetting.SettingName = "DisableAutoGainControl";
+            setSetting.SettingValue = "True";
+            var disableAutoGainControlResult = rtcHandle.SetSetting(ref setSetting);
         }
 
         private void OnRTCRoomConnectionChangedReceived(ref RTCRoomConnectionChangedCallbackInfo data)
@@ -809,7 +816,7 @@ namespace PlayEveryWare.EpicOnlineServices.Samples
                 metadataCount);
 
             // Ensure this update is for our room
-            if (string.IsNullOrEmpty(CurrentLobby.RTCRoomName) || CurrentLobby.RTCRoomName.Equals(data.RoomName, StringComparison.OrdinalIgnoreCase))
+            if (string.IsNullOrEmpty(CurrentLobby.RTCRoomName) || !CurrentLobby.RTCRoomName.Equals(data.RoomName, StringComparison.OrdinalIgnoreCase))
             {
                 return;
             }
@@ -905,9 +912,7 @@ namespace PlayEveryWare.EpicOnlineServices.Samples
 
             LobbySearchCallback = null;
 
-#if UNITY_IOS && !UNITY_EDITOR
-            (EOSManagerPlatformSpecifics.Instance as EOSPlatformSpecificsiOS).SetDefaultAudioSession();
-#endif
+            EOSManagerPlatformSpecificsSingleton.Instance.SetDefaultAudioSession();
         }
 
         /// <summary>User Logged Out actions</summary>
@@ -973,21 +978,16 @@ namespace PlayEveryWare.EpicOnlineServices.Samples
             // Voice Chat
             if(lobbyProperties.RTCRoomEnabled)
             {
-                LocalRTCOptions rtcOptions = new LocalRTCOptions()
+                if (customLocalRTCOptions != null)
                 {
-                    Flags = 0, //EOS_RTC_JOINROOMFLAGS_ENABLE_ECHO;
-                    UseManualAudioInput = false,
-                    UseManualAudioOutput = false,
-                    LocalAudioDeviceInputStartsMuted = false
-                };
+                    createLobbyOptions.LocalRTCOptions = customLocalRTCOptions;
+                }
 
-                createLobbyOptions.EnableRTCRoom = true;
-                createLobbyOptions.LocalRTCOptions = rtcOptions;
+                createLobbyOptions.EnableRTCRoom = true;      
             }
             else
             {
                 createLobbyOptions.EnableRTCRoom = false;
-                createLobbyOptions.LocalRTCOptions = null;
             }
 
             EOSManager.Instance.GetEOSLobbyInterface().CreateLobby(ref createLobbyOptions, CreateLobbyCompleted, OnCreateLobbyCompleted);
@@ -1450,32 +1450,16 @@ namespace PlayEveryWare.EpicOnlineServices.Samples
 
                 lobbyMember.RTCState.PressToTalkEnabled = !lobbyMember.RTCState.PressToTalkEnabled;
 
-                if (!lobbyMember.RTCState.PressToTalkEnabled)
+                UpdateSendingVolumeOptions sendVolumeOptions = new UpdateSendingVolumeOptions()
                 {
-                    UpdateSendingOptions sendOptions = new UpdateSendingOptions()
-                    {
-                        LocalUserId = EOSManager.Instance.GetProductUserId(),
-                        RoomName = CurrentLobby.RTCRoomName,
-                        AudioStatus = lobbyMember.RTCState.IsLocalMuted ? RTCAudioStatus.Disabled : RTCAudioStatus.Enabled
-                    };
+                    LocalUserId = EOSManager.Instance.GetProductUserId(),
+                    RoomName = CurrentLobby.RTCRoomName,
+                    Volume = lobbyMember.RTCState.PressToTalkEnabled ? 0 : 50
+                };
 
-                    Debug.LogFormat("Press To Talk Disabled : Current self Audio output status is {0}", sendOptions.AudioStatus == RTCAudioStatus.Enabled ? "Unmuted" : "Muted");
+                Debug.LogFormat("Press To Talk Enabled : {0} : Current self Audio output volume is {1}", lobbyMember.RTCState.PressToTalkEnabled, sendVolumeOptions.Volume);
 
-                    rtcAudioHandle.UpdateSending(ref sendOptions, EnablePressToTalkCompleted, OnRTCRoomUpdateSendingCompleted);
-                }
-                else
-                {
-                    UpdateSendingOptions sendOptions = new UpdateSendingOptions()
-                    {
-                        LocalUserId = EOSManager.Instance.GetProductUserId(),
-                        RoomName = CurrentLobby.RTCRoomName,
-                        AudioStatus = Input.GetKey(KeyCode.Space) ? RTCAudioStatus.Enabled : RTCAudioStatus.Disabled
-                    };
-
-                    Debug.LogFormat("Press To Talk Enabled : Current self Audio output status is {0}", sendOptions.AudioStatus == RTCAudioStatus.Enabled ? "Unmuted" : "Muted");
-
-                    rtcAudioHandle.UpdateSending(ref sendOptions, EnablePressToTalkCompleted, OnRTCRoomUpdateSendingCompleted);
-                }
+                rtcAudioHandle.UpdateSendingVolume(ref sendVolumeOptions, EnablePressToTalkCompleted, null);
             }
         }
         // Member Events
@@ -1493,31 +1477,16 @@ namespace PlayEveryWare.EpicOnlineServices.Samples
                     continue;
                 }
 
-                // Do not allow multiple local mute toggles at the same time
-                if (lobbyMember.RTCState.MuteActionInProgress)
+                UpdateSendingVolumeOptions sendVolumeOptions = new UpdateSendingVolumeOptions()
                 {
-                    Debug.LogWarningFormat("Lobbies (TogglePressToTalk): 'MuteActionInProgress' for productUserId {0}.", targetUserId);
-                    TogglePressToTalkCompleted?.Invoke(Result.RequestInProgress);
-                    return;
-                }
+                    LocalUserId = EOSManager.Instance.GetProductUserId(),
+                    RoomName = CurrentLobby.RTCRoomName,
+                    Volume = Input.GetKey(PTTKeyCode) ? 50 : 0
+                };
 
-                if (Input.GetKey(PTTKeyCode) ^ !lobbyMember.RTCState.IsAudioOutputDisabled)
-                {
-                    // Set mute action as in progress
-                    lobbyMember.RTCState.MuteActionInProgress = true;
+                Debug.LogFormat("Lobbies (TogglePressToTalk): Setting self audio output volume to {0}", sendVolumeOptions.Volume);
 
-                    // Toggle our mute status
-                    UpdateSendingOptions sendOptions = new UpdateSendingOptions()
-                    {
-                        LocalUserId = EOSManager.Instance.GetProductUserId(),
-                        RoomName = CurrentLobby.RTCRoomName,
-                        AudioStatus = Input.GetKey(PTTKeyCode) ? RTCAudioStatus.Enabled : RTCAudioStatus.Disabled
-                    };
-
-                    Debug.LogFormat("Lobbies (TogglePressToTalk): Setting self audio output status to {0}", sendOptions.AudioStatus == RTCAudioStatus.Enabled ? "Unmuted" : "Muted");
-
-                    rtcAudioHandle.UpdateSending(ref sendOptions, TogglePressToTalkCompleted, OnRTCRoomUpdateSendingCompleted);
-                }
+                rtcAudioHandle.UpdateSendingVolume(ref sendVolumeOptions, TogglePressToTalkCompleted, null);
             }
         }
 
@@ -2354,7 +2323,10 @@ namespace PlayEveryWare.EpicOnlineServices.Samples
             joinOptions.LobbyDetailsHandle = lobbyDetails;
             joinOptions.LocalUserId = EOSManager.Instance.GetProductUserId();
             joinOptions.PresenceEnabled = presenceEnabled;
-
+            if (customLocalRTCOptions != null)
+            {
+                joinOptions.LocalRTCOptions = customLocalRTCOptions;
+            }
             EOSManager.Instance.GetEOSLobbyInterface().JoinLobby(ref joinOptions, JoinLobbyCompleted, OnJoinLobbyCompleted);
         }
 

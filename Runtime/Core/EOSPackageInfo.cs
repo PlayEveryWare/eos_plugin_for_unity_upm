@@ -20,24 +20,23 @@
 * SOFTWARE.
 */
 
-public static class EOSPackageInfo
+namespace PlayEveryWare.EpicOnlineServices
 {
-    /// <value>Hard-coded configuration file name ("EpicOnlineServicesConfig.json")</value>
-    public static readonly string ConfigFileName = "EpicOnlineServicesConfig.json";
-    public const string UnknownVersion = "?.?.?";
-
-    //-------------------------------------------------------------------------
-
-    public static string GetPackageName()
+    public static class EOSPackageInfo
     {
-        return "com.playeveryware.eos";
-    }
+        public static readonly string ConfigFileName = "EpicOnlineServicesConfig.json";
 
-    //-------------------------------------------------------------------------
-    //VERSION START
-    public static string GetPackageVersion()
-    {
-        return "3.0.3";
+        /*
+         * TODO:
+         *
+         * The automated process utilized previously to read and write values to CS files to indicate version and package name
+         * was fragile and had too much overhead. For the time being, it has been replaced by hard-coded values, but in the
+         * near future it is important that these values change as part of the build process in an automated fashion that does
+         * not involve editing source code files.
+         */
+
+        public const string Version = "3.1.0";
+
+        public const string PackageName = "com.playeveryware.eos";
     }
-    //VERSION END
 }

@@ -50,7 +50,7 @@ public class DLLHandle : SafeHandle
     {
         string uwpPluginsPath = Path.Combine(Application.streamingAssetsPath, "..", "..");
         string pluginsPath = Path.Combine(Application.dataPath, "Plugins");
-        string packagedPluginPath = Path.GetFullPath(Path.Combine("Packages", EOSPackageInfo.GetPackageName(), "Runtime"));
+        string packagedPluginPath = Path.GetFullPath(Path.Combine("Packages", EOSPackageInfo.PackageName, "Runtime"));
         var pluginPaths = new List<string>();
 
         pluginPaths.Add(pluginsPath);
@@ -59,9 +59,9 @@ public class DLLHandle : SafeHandle
 #if UNITY_WSA
         pluginPaths.Add(uwpPluginsPath);
 #endif
-        if (EOSManagerPlatformSpecifics.Instance != null)
+        if (EOSManagerPlatformSpecificsSingleton.Instance != null)
         {
-            EOSManagerPlatformSpecifics.Instance.AddPluginSearchPaths(ref pluginPaths);
+            EOSManagerPlatformSpecificsSingleton.Instance.AddPluginSearchPaths(ref pluginPaths);
         }
 
         for (int i = pluginPaths.Count - 1; i >= 0; --i)
@@ -169,7 +169,7 @@ public class DLLHandle : SafeHandle
     {
         print("Loading Library " + libraryName);
         List<string> pluginPaths = GetPathsToPlugins();
-        string ext = EOSManagerPlatformSpecifics.Instance != null ? EOSManagerPlatformSpecifics.Instance.GetDynamicLibraryExtension() : ".dll";
+        string ext = EOSManagerPlatformSpecificsSingleton.Instance != null ? EOSManagerPlatformSpecificsSingleton.Instance.GetDynamicLibraryExtension() : ".dll";
 
         //TODO: change it to take the platform into consideration
         //TODO: probably make this more generic?
