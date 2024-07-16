@@ -1,0 +1,2 @@
+EOSBootstrapper.exe     filter=lfs diff=lfs merge=lfs binary
+EOSBootstrapperTool.exe filter=lfs diff=lfs merge=lfs binary

@@ -59,8 +59,6 @@ namespace PlayEveryWare.EpicOnlineServices.Samples
         [Header("Controller")]
         public GameObject UIFirstSelected;
 
-        private EOSAchievementManager achievementManager;
-
         private List<UIAchievementButton> achievementListItems;
 
         private bool displayDefinition = false;
@@ -79,22 +77,21 @@ namespace PlayEveryWare.EpicOnlineServices.Samples
             achievementListItems = new List<UIAchievementButton>();
 
             HideMenu();
-            achievementManager = EOSManager.Instance.GetOrCreateManager<EOSAchievementManager>();
         }
 
         private void OnEnable()
         {
-            achievementManager?.AddNotifyAchievementDataUpdated(OnAchievementDataUpdated);
+            AchievementsService.Instance.AddUpdateCallback(OnAchievementDataUpdated);
         }
 
         private void OnDisable()
         {
-            achievementManager?.RemoveNotifyAchievementDataUpdated(OnAchievementDataUpdated);
+            AchievementsService.Instance.RemoveUpdateCallback(OnAchievementDataUpdated);
         }
 
         private void OnDestroy()
         {
-            EOSManager.Instance.RemoveManager<EOSAchievementManager>();
+            EOSManager.Instance.RemoveManager<AchievementsService>();
         }
 
         private void Update()
@@ -134,48 +131,35 @@ namespace PlayEveryWare.EpicOnlineServices.Samples
             achievementLockedIcon.gameObject.SetActive(false);
         }
 
-        public void IncrementLoginStat()
+        public async void IncrementLoginStat()
         {
-            var statsInterface = EOSManager.Instance.GetEOSPlatformInterface().GetStatsInterface();
-            var userId = EOSManager.Instance.GetProductUserId();
-            IngestStatOptions ingestOptions = new IngestStatOptions()
-            {
-                LocalUserId = userId,
-                TargetUserId = userId,
-                Stats = new IngestData[] { new IngestData() { StatName = "login_count", IngestAmount = 1 } }
-            };
-
-            statsInterface.IngestStat(ref ingestOptions, null, (ref IngestStatCompleteCallbackInfo info) =>
-            {
-                Debug.LogFormat("Stat ingest result: {0}", info.ResultCode.ToString());
-                achievementManager.RefreshData();
-            });
+            await StatsService.Instance.IngestStatAsync("login_count", 1);
         }
 
         //manually unlock achievement being displayed
         //TODO: refresh achievement data without having to log out
-        public void UnlockAchievement()
+        public async void UnlockAchievement()
         {
-            if (displayIndex < 0 || displayIndex > achievementManager.GetAchievementDefinitionCount())
+            if (displayIndex < 0 || displayIndex > AchievementsService.GetAchievementsCount())
             {
                 return;
             }
 
-            var definition = achievementManager.GetAchievementDefinitionAtIndex(displayIndex);
+            var definition = AchievementsService.Instance.GetAchievementDefinitionAtIndex(displayIndex);
 
-            achievementManager.UnlockAchievementManually(definition.AchievementId, (ref OnUnlockAchievementsCompleteCallbackInfo info) =>
+            try
             {
-                if (info.ResultCode == Result.Success)
-                {
-                    Debug.Log("UnlockAchievement Succeed"); 
-                    achievementManager.RefreshData();
-                }
-            });
+                await AchievementsService.Instance.UnlockAchievementAsync(definition.AchievementId);
+            }
+            catch (Exception e)
+            {
+                Debug.LogError(e.Message);
+            }
         }
 
-        public void OnRefreshDataClicked()
+        public async void OnRefreshDataClicked()
         {
-            achievementManager.RefreshData();
+            await AchievementsService.Instance.RefreshAsync();
         }
 
         // Achievements
@@ -188,11 +172,11 @@ namespace PlayEveryWare.EpicOnlineServices.Samples
             achievementListItems.Clear();
             achievementDataList.Clear();
 
-            uint achievementDefCount = achievementManager.GetAchievementDefinitionCount();
+            uint achievementDefCount = AchievementsService.GetAchievementsCount();
 
             if (achievementDefCount > 0)
             {
-                foreach (var achievementDef in achievementManager.EnumerateCachedAchievementDefinitions())
+                foreach (var achievementDef in AchievementsService.Instance.CachedAchievements())
                 {
                     achievementDataList.Add(new AchievementData()
                     {
@@ -204,7 +188,7 @@ namespace PlayEveryWare.EpicOnlineServices.Samples
                 var userId = EOSManager.Instance.GetProductUserId();
                 if (userId.IsValid())
                 {
-                    foreach (var playerAch in achievementManager.EnumerateCachedPlayerAchievement(userId))
+                    foreach (var playerAch in AchievementsService.Instance.CachedPlayerAchievements(userId))
                     {
                         var achData = achievementDataList.Find((AchievementData data) => data.Definition.AchievementId == playerAch.AchievementId);
                         if (achData != null)
@@ -218,7 +202,8 @@ namespace PlayEveryWare.EpicOnlineServices.Samples
                 scrollRect.content.sizeDelta = new Vector2(0, achievementDefCount * 30);
 
                 int i = 0;
-                foreach (var achievementData in achievementDataList)
+                List<AchievementData> achievementDataListCopy = new(achievementDataList);
+                foreach (var achievementData in achievementDataListCopy)
                 {
                     var newButton = Instantiate(itemTemplate, achievementListContainer);
                     newButton.SetNameText(achievementData.Definition.AchievementId);
@@ -230,8 +215,8 @@ namespace PlayEveryWare.EpicOnlineServices.Samples
                     while (iconTex == null)
                     {
                         iconTex = unlocked ?
-                           achievementManager.GetAchievementUnlockedIconTexture(achievementData.Definition.AchievementId)
-                           : achievementManager.GetAchievementLockedIconTexture(achievementData.Definition.AchievementId);
+                            AchievementsService.Instance.GetAchievementUnlockedIconTexture(achievementData.Definition.AchievementId)
+                           : AchievementsService.Instance.GetAchievementLockedIconTexture(achievementData.Definition.AchievementId);
                         await System.Threading.Tasks.Task.Yield();
 
                         if (Time.frameCount > iconGiveupFrame)
@@ -274,7 +259,7 @@ namespace PlayEveryWare.EpicOnlineServices.Samples
 
         public void OnDefinitionIdButtonClicked(int i)
         {
-            if (i > achievementManager.GetAchievementDefinitionCount())
+            if (i > AchievementsService.GetAchievementsCount())
             {
                 return;
             }
@@ -283,8 +268,8 @@ namespace PlayEveryWare.EpicOnlineServices.Samples
 
             var achievementData = achievementDataList[i];
             var definition = achievementData.Definition;
-            achievementUnlockedIcon.texture = achievementManager.GetAchievementUnlockedIconTexture(definition.AchievementId);
-            achievementLockedIcon.texture = achievementManager.GetAchievementLockedIconTexture(definition.AchievementId);
+            achievementUnlockedIcon.texture = AchievementsService.Instance.GetAchievementUnlockedIconTexture(definition.AchievementId);
+            achievementLockedIcon.texture = AchievementsService.Instance.GetAchievementLockedIconTexture(definition.AchievementId);
 
             unlockAchievementButton.gameObject.SetActive(true);
 
@@ -304,7 +289,7 @@ namespace PlayEveryWare.EpicOnlineServices.Samples
         void DisplayPlayerAchievement(DefinitionV2 definition)
         {
             PlayerAchievement? achievementNullable = null;
-            foreach (var ach in achievementManager.EnumerateCachedPlayerAchievement(EOSManager.Instance.GetProductUserId()))
+            foreach (var ach in AchievementsService.Instance.CachedPlayerAchievements(EOSManager.Instance.GetProductUserId()))
             {
                 if (ach.AchievementId == definition.AchievementId)
                 {

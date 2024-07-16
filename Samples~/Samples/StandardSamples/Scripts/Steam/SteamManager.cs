@@ -34,6 +34,7 @@
 #endif
 
 using System;
+using System.Threading.Tasks;
 using UnityEngine;
 #if !DISABLESTEAMWORKS
 using Steamworks;
@@ -63,6 +64,9 @@ namespace PlayEveryWare.EpicOnlineServices.Samples.Steam
         HAuthTicket sessionTicketHandle = HAuthTicket.Invalid;
         string sessionTicketString = null;
 
+        TaskCompletionSource<string> authTicketResponseTaskCompletionSource;
+        Callback<GetTicketForWebApiResponse_t> authTicketForWebApiResponseCallback { get; set; }
+
         CallResult<EncryptedAppTicketResponse_t> appTicketCallResult = new CallResult<EncryptedAppTicketResponse_t>();
         private event Action<string> appTicketEvent;
         private string encryptedAppTicket = null;
@@ -72,8 +76,13 @@ namespace PlayEveryWare.EpicOnlineServices.Samples.Steam
             if (ioFailure || response.m_eResult != EResult.k_EResultOK)
             {
                 Debug.LogError("Error occured when requesting Encrypted App Ticket");
-                appTicketEvent?.Invoke(null);
+
+                // First set the appTicketEvent we're calling to its own variable, set the appTicketEvent to null, then invoke the variable we set aside.
+                // This way if the callback for the function would add to the appTicketEvent, it isn't immediately set to null.
+                // This pattern is applied to the other calls that raise appTicketEvent inside this function.
+                Action<string> appTicketEventLetIOFailureOrNotOkay = appTicketEvent;
                 appTicketEvent = null;
+                appTicketEventLetIOFailureOrNotOkay?.Invoke(null);
                 return;
             }
 
@@ -91,8 +100,12 @@ namespace PlayEveryWare.EpicOnlineServices.Samples.Steam
             if (!success)
             {
                 Debug.LogError("Failed to retrieve Encrypted App Ticket");
-                appTicketEvent?.Invoke(null);
+
+                // See above in regards to raising appTicketEvent
+                Action<string> appTicketEventLetNotSuccess = appTicketEvent;
                 appTicketEvent = null;
+                appTicketEventLetNotSuccess?.Invoke(null);
+
                 return;
             }
 
@@ -101,8 +114,10 @@ namespace PlayEveryWare.EpicOnlineServices.Samples.Steam
             //convert to hex string
             encryptedAppTicket = System.BitConverter.ToString(buffer).Replace("-", "");
 
-            appTicketEvent?.Invoke(encryptedAppTicket);
+            // See above in regards to raising appTicketEvent
+            Action<string> appTicketEventLetSuccess = appTicketEvent;
             appTicketEvent = null;
+            appTicketEventLetSuccess?.Invoke(encryptedAppTicket);
         }
 
         private void OnApplicationQuit()
@@ -114,8 +129,6 @@ namespace PlayEveryWare.EpicOnlineServices.Samples.Steam
                 sessionTicketString = null;
             }
         }
-
-
 
         // This should only ever get called on first load and after an Assembly reload, You should never Disable the Steamworks Manager yourself.
         protected virtual void OnEnable()
@@ -136,6 +149,24 @@ namespace PlayEveryWare.EpicOnlineServices.Samples.Steam
                 // You must launch with "-debug_steamapi" in the launch args to receive warnings.
                 m_SteamAPIWarningMessageHook = new SteamAPIWarningMessageHook_t(SteamAPIDebugTextHook);
                 SteamClient.SetWarningMessageHook(m_SteamAPIWarningMessageHook);
+            }
+
+            if (authTicketForWebApiResponseCallback == null)
+            {
+                authTicketForWebApiResponseCallback = Callback<GetTicketForWebApiResponse_t>.Create(
+                    (GetTicketForWebApiResponse_t pCallback) =>
+                    {
+                        if (pCallback.m_eResult == EResult.k_EResultOK)
+                        {
+                            sessionTicketHandle = pCallback.m_hAuthTicket;
+                            sessionTicketString = System.BitConverter.ToString(pCallback.m_rgubTicket).Replace("-", "");
+                            authTicketResponseTaskCompletionSource.SetResult(sessionTicketString);
+                        }
+                        else
+                        {
+                            Debug.LogError($"GetAuthTicketForWebApi Result : {pCallback.m_eResult}");
+                        }
+                    });
             }
         }
 
@@ -301,7 +332,25 @@ namespace PlayEveryWare.EpicOnlineServices.Samples.Steam
             return SteamUser.GetSteamID().GetAccountID().ToString();
 #endif
         }
+        public Task<string> GetSessionTicketTask()
+        {
+#if DISABLESTEAMWORKS
+            return null;
+#else
+            // GetAuthTicketForWebApi will become the only EOS supported way to grab session tickets in the future
+            // https://dev.epicgames.com/docs/dev-portal/identity-provider-management#steam
+            // For now (2024/06/19) it still used the old way to grab session tickets
+            // Manually define GET_SESSION_TICKET_FOR_WEB_API to use the new version
+    #if ASYNC_GET_STEAM_SESSION_TICKET_PREVIEW
 
+            authTicketResponseTaskCompletionSource = new TaskCompletionSource<string>();
+            SteamUser.GetAuthTicketForWebApi(null);
+            return authTicketResponseTaskCompletionSource.Task;
+    #else
+            return Task.FromResult(GetSessionTicket());
+    #endif
+#endif
+        }
         public string GetSessionTicket()
         {
 #if DISABLESTEAMWORKS
@@ -336,7 +385,6 @@ namespace PlayEveryWare.EpicOnlineServices.Samples.Steam
             sessionTicketString = System.BitConverter.ToString(buffer).Replace("-", "");
             return sessionTicketString;
 #endif
-
         }
 
         public void RequestAppTicket(Action<string> callback)
@@ -358,6 +406,7 @@ namespace PlayEveryWare.EpicOnlineServices.Samples.Steam
 
             appTicketEvent += callback;
             var call = SteamUser.RequestEncryptedAppTicket(null, 0);
+            appTicketCallResult = new CallResult<EncryptedAppTicketResponse_t>();
             appTicketCallResult.Set(call, RequestAppTicketResponse);
 #endif
         }
@@ -365,17 +414,19 @@ namespace PlayEveryWare.EpicOnlineServices.Samples.Steam
         /// NOTE: This conditional is here because if EOS_DISABLE is enabled, the members referenced
         ///       in this code block will not exist on EOSManager.
 #if !EOS_DISABLE
-        public void StartLoginWithSteam(EOSManager.OnAuthLoginCallback onLoginCallback)
+        public async void StartLoginWithSteam(EOSManager.OnAuthLoginCallback onLoginCallback)
         {
 #if DISABLESTEAMWORKS
             onLoginCallback?.Invoke(new Epic.OnlineServices.Auth.LoginCallbackInfo()
             {
                 ResultCode = Epic.OnlineServices.Result.UnexpectedError
             });
+
+            await Task.Run(() => { });
 #else
 
             string steamId = GetSteamID();
-            string steamToken = GetSessionTicket();
+            string steamToken = await GetSessionTicketTask();
             if (steamId == null)
             {
                 Debug.LogError("ExternalAuth failed: Steam ID not valid");
@@ -419,7 +470,21 @@ namespace PlayEveryWare.EpicOnlineServices.Samples.Steam
                 }
                 else
                 {
-                    EOSManager.Instance.StartConnectLoginWithOptions(Epic.OnlineServices.ExternalCredentialType.SteamAppTicket, token, onloginCallback: onLoginCallback);
+                    // At this point, we're certain that a token was received from RequestAppTicket
+                    // Now add to the callback a step wherein, if it fails from this point, the cached encryptedAppTicket will be invalidated
+                    EOSManager.OnConnectLoginCallback cacheInvalidationOnFailureCallback = (Epic.OnlineServices.Connect.LoginCallbackInfo callbackInfo) =>
+                    {
+                        if (callbackInfo.ResultCode != Epic.OnlineServices.Result.Success)
+                        {
+                            Debug.Log($"Connect Login failed: SteamManager successfully retrieved an app ticket from Steam, but the provided app ticket was invalid for logging in to Epic Online Services. The cached app ticket in `{nameof(encryptedAppTicket)}` will now be invalidated.");
+                            encryptedAppTicket = null;
+                        }
+
+                        // Then call the original callback we were provided, if we have one
+                        onLoginCallback?.Invoke(callbackInfo);
+                    };
+
+                    EOSManager.Instance.StartConnectLoginWithOptions(Epic.OnlineServices.ExternalCredentialType.SteamAppTicket, token, onloginCallback: cacheInvalidationOnFailureCallback);
                 }
             });
 #endif
