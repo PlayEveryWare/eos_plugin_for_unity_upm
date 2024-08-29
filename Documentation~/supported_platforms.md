@@ -1,4 +1,4 @@
-<a href="/README.md"><img src="/docs/images/PlayEveryWareLogo.gif" alt="Readme" width="5%"/></a>
+<a href="/README.md"><img src="/com.playeveryware.eos/Documentation~/images/PlayEveryWareLogo.gif" alt="Readme" width="5%"/></a>
 
 # Supported Platforms
 
@@ -6,10 +6,10 @@
 
 - **Windows (Standalone x86 & x64)**
 - **Universal Windows Platform (x64)**
-- **[Android](/docs/android/README_Android.md)** [^1]
-- **[iOS](/docs/iOS/README_iOS.md)** [^1]
-- **[Linux](/docs/dev_env/Ubuntu_Development_Environment.md)** [^1]
-- **[MacOS](/docs/macOS/README_macOS.md)**
+- **[Android](/com.playeveryware.eos/Documentation~/android/README_Android.md)** [^1]
+- **[iOS](/com.playeveryware.eos/Documentation~/iOS/README_iOS.md)** [^1]
+- **[Linux](/com.playeveryware.eos/Documentation~/dev_env/Ubuntu_Development_Environment.md)** [^1]
+- **[MacOS](/com.playeveryware.eos/Documentation~/macOS/README_macOS.md)**
 - **Nintendo Switch**<br>
   _For details, please see the Nintendo Developer Portal._
 - **Xbox (One & Xbox Series X)**<br>
@@ -29,5 +29,5 @@ We are always looking to add the functionality of the plugin to more platforms, 
 
 ## Targetted Versions:
 
-* Targets [Unity 2021.3.8f1](https://unity.com/releases/editor/whats-new/2021.3.8), for best results a version of Unity 2021 is preferred.
-* Targets [EOS SDK 1.16.0](https://dev.epicgames.com/docs/epic-online-services/release-notes#116---2023-aug-16) *(bundled with plugin)*.
+* Targets [Unity 2021.3.16f1](https://unity.com/releases/editor/whats-new/2021.3.16), for best results a version of Unity 2021 is preferred.
+* Targets [EOS SDK 1.16.3](https://dev.epicgames.com/docs/epic-online-services/release-notes#1163-cl32303053---2024-apr-09) *(bundled with plugin)*.
