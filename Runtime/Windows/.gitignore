@@ -1,0 +1,10 @@
+*.ilk
+*.ilk.meta
+*.exp
+*.exp.meta
+*.iobj
+*.iobj.meta
+*.ipdb
+*.ipdb.meta
+*.idb
+*.idb.meta
